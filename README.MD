@@ -124,4 +124,37 @@ Hier ist mein physisches ERD, Stand 17.09.2024:
 
 
 
-#### **Implementierung Bestellhistorie**
+### Eilmeldung! ENUM sinnlos!
+17.09.2024: Es ist alles sinnlos!!! Was ist passiert?
+Nein, nicht alles ist sinnlos, ich muss nur eine Spalte in meiner Tabelle von einem ENUM zu einem normalen VARCHAR zurückstufen. Und das nicht, weil es sich bei ENUM um einen sinnlosen Datentyp handelt, sondern weil Zahlmethoden sich ändern könnten und man dann nicht jedes Mal die Programmiererin des Vertrauens rufen will, um die Zahlungsmethode in den Datentyp reinzuprokeln, damit man ihn in die Tabelle einpflegen kann. 
+ENUM könnte man bei Spalten verwenden, die unveräandert bleiben, z. B. wenn man in einem Lieferrestaurant anzeigen will, ob das Essen erst bestellt oder in Vorbereitung ist, oder schon ausgeliefert und bezahlt (wenn man das nicht mit einer elektronischen Zahlungsart schon vorher ...eeeeeehm!)
+
+```sql
+ALTER TABLE benutzer
+ALTER COLUMN zahlungsart 
+SET DATA TYPE VARCHAR(20);
+```
+Trotz eingefügten Datensatzes scheint es funktioniert zu haben. WIESO? Ich meine, cool! Allerdings muss ich jetzt doch was ausprobieren:
+
+```sql
+ALTER TABLE benutzer
+ALTER COLUMN zahlungsart 
+SET DATA TYPE INT;
+```
+Aha!
+
+*ERROR:  column "zahlungsart" cannot be cast automatically to type integer
+HINT:  You might need to specify "USING zahlungsart::integer".*
+```sql
+ALTER TABLE benutzer
+ALTER COLUMN zahlungsart 
+SET DATA TYPE INT USING zahlungsart::integer;
+```
+*ERROR:  invalid input syntax for type integer: "abbuchung"*
+
+Mein eingepflegter Datensatz hat den String "abbuchung" in dem Feld der Spalte. Ich hatte Strings in den ENUM eingegeben und VARCHAR ist ein String mit einer festgelegten Anzal an Zeichen. Beides trifft auf den Eintrag in der Spalte zu und deswegen konnte ich sie nachträglich ändern.
+
+Nichtsdestotrotz liegt da jetzt immer noch ein Datentyp ungenutzt im Speicher rum. Ich werde ihn mal löschen.
+```sql
+DROP TYPE zahlungsart;
+```
