@@ -109,13 +109,18 @@ ALTER TABLE benutzerkonto
 RENAME TO benutzer;
 
 ```
-### weitere Überlegungen zum ERD
+### die Tabellen Lager und Produkte
 
-Die meisten Tabellen scheinen sich auf "herkömmliche" Art erstellen zu lassen, sodass es dann bei der Erstellung wohl weniger abenteuerlich zugehen wird. 
+Zur Tabelle Lager ist anzumerken, dass ich mir gerade Gedanken gemacht habe, wie das mit der Lagerung überhaupt funktioniert. Grobe Recherchen ergaben, dass es die Möglichkeit einer zentralen oder dezentralen Lagerung gibt, mit dem Unterschied, dass man bei der zentralen Lagerung ein einziges Lager hat. (Spoiler: dann bräuchte ich jetzt aber irgendwie keine Tabelle für die Lager). Tatsächlich hbe ich auch gefunden, dass für Onlineshops die deznetrale Lagerung benutzt wird. Und weil ein Comicshop vielleicht zumindest am Anfang nicht so ein Riesengeschäft ist, dass man eigene Lagerhäuser unterhalten könnte, habe ich noch recherchiert, ob man einzelne Lagerräume anmieten kann. Kann man. Da bin ich aber beruhigt!
 
-(Nerdinformation am Rande, weil ich mein Gehirn manchmal nicht abschalten kann) Zur Tabelle Lager ist anzumerken, dass ich mir gerade Gedanken gemacht habe, wie das mit der Lagerung überhaupt funktioniert. Grobe Recherchen ergaben, dass es die Möglichkeit einer zentralen oder dezentralen Lagerung gibt, mit dem Unterschied, dass man bei der zentralen Lagerung ein einziges Lager hat. (Spoiler: dann bräcuhte ich jetzt aber irgendwie keine Tabelle für die Lager). Tatsächlich hbe ich auch gefunden, dass für Onlineshops die deznetrale Lagerung benutzt wird. Und weil ein Comicshop vielleicht zumindest am Anfang nicht so ein Riesengeschäft ist, dass man eigene Lagerhäuser unterhalten könnte, habe ich noch recherchiert, ob man einzelne Lagerräume anmieten kann. Kann man. Da bin ich aber beruhigt!
+Fragen tun sich bei mir in der Beziehung zwischen Lager und Produkten auf. Im vorgegebenen Diagramm gibt es eine One-to-Many-Beziehung zwischen der Tabelle "Lager" und der Tabelle "Produkte". Wäre dies nun ein Auftrag für einen echten Shop, würde ich die Betreiber*innen fragen. Ich gehe nun davon aus, dass wir mehrere Lager haben und dass, aufgrund der kurzen Lieferwege, die der Vorteil eines dezentralen Lagerungssystems sind, möglichst in mehreren Lagern dasselbe Produkt vorrätig sein soll. Ein Produkt kann in mehreren Lagern sein und in einem Lager sind mehrere verschiedene Produkte. Das ist dann eine *Many-to-Many-Beziehung*. 
+Hier sollte also noch eine *Hilfstabelle* implementiert werden. Das ist die Produkt-im-Lager-Tabelle. Zunächst dachte ich an einen Composite Primary Key auf der Produkt-Id und der Lager-Id und wunderte mich allgemein, wieso es keine Composite Keys in dem vorgegebenen Diagramm gibt. Weitere Überlegungen führten zu dem Ergebnis, dass ein Primary Key niemals NULL sein darf. Was ist aber, wenn das Lager umzieht oder ein Produkt vom Markt genommen wird? Wahrscheinlich kann aus verschiedenen Gründen etwas NULL werden. Eine zusätzliche Id als Primary Key ändert auch nichts in der Funktion der Tabelle, also lege ich keinen Composite Kay an. 
+Die Tabelle bekommt eine weitere Spalte, die die Stückzahl eines Produktes in einem der Lager anzeigt. Zudem füge ich noch eine Spalte letzte_lieferung_am ein, die einen Timestamp erhält, der bei jeder Belieferung aktualisiert wird. So kann man sehen, welche Produkte zu Ladenhütern werden und vielleicht veräußert werden müssen, wenn es im Lager eng wird.
 
+### ERD vorher
+Hier ist mein physisches ERD, Stand 17.09.2024:
 
+![physisches Entity-Relationship-Diagram](/ERD-physisch.png)
 
 
 
