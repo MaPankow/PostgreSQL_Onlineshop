@@ -126,8 +126,8 @@ Hier ist mein physisches ERD, Stand 17.09.2024:
 
 ### Eilmeldung! ENUM sinnlos!
 17.09.2024: Es ist alles sinnlos!!! Was ist passiert?
-Nein, nicht alles ist sinnlos, ich muss nur eine Spalte in meiner Tabelle von einem ENUM zu einem normalen VARCHAR zurückstufen. Und das nicht, weil es sich bei ENUM um einen sinnlosen Datentyp handelt, sondern weil Zahlmethoden sich ändern könnten und man dann nicht jedes Mal die Programmiererin des Vertrauens rufen will, um die Zahlungsmethode in den Datentyp reinzuprokeln, damit man ihn in die Tabelle einpflegen kann. 
-ENUM könnte man bei Spalten verwenden, die unveräandert bleiben, z. B. wenn man in einem Lieferrestaurant anzeigen will, ob das Essen erst bestellt oder in Vorbereitung ist, oder schon ausgeliefert und bezahlt (wenn man das nicht mit einer elektronischen Zahlungsart schon vorher ...eeeeeehm!)
+Nein, nicht alles ist sinnlos, ich muss nur eine Spalte in meiner Tabelle von einem ENUM zu einem normalen VARCHAR umstellen. Und das nicht, weil es sich bei ENUM um einen sinnlosen Datentyp handelt, sondern weil Zahlungsmethoden sich ändern könnten und man dann nicht jedes Mal die Programmiererin des Vertrauens rufen will, um die Zahlungsmethode in den Datentyp reinzuprokeln, damit man ihn in die Tabelle einpflegen kann. 
+ENUM könnte man bei Spalten verwenden, die unverändert bleiben, z. B. wenn man in einem Lieferrestaurant anzeigen will, ob das Essen erst bestellt oder in Vorbereitung ist, oder schon ausgeliefert und bezahlt (wenn man das nicht mit einer elektronischen Zahlungsart schon vorher ...eeeeeehm!)
 
 ```sql
 ALTER TABLE benutzer
@@ -158,3 +158,38 @@ Nichtsdestotrotz liegt da jetzt immer noch ein Datentyp ungenutzt im Speicher ru
 ```sql
 DROP TYPE zahlungsart;
 ```
+
+## Tabellen implementieren
+
+### Bestellungen
+18.09.2024
+Es gibt einen Grund, weshalb ich die Tabellen in einer bestimmten Reihenfolge baue. Die meisten enthalten Foreign Keys, die auf andere Tabellen verweisen. Diese Foreign Keys können aber nicht angelegt werden, wenn die Tabelle, auf die sie verweisen, nicht da ist. Man könnte sie zwar später hinzufügen, aber man kann es auch in der richtigen Reihenfolge machen, um nicht durcheinanderzukommen.
+
+Die Tabelle benutzer ist da und bestellungen hat einen Foreign Key, der auf benutzer verweist. Ich lege sie als nächste Tabelle an.
+
+```sql
+CREATE TABLE bestellungen (
+    id_bestellung SERIAL PRIMARY KEY,
+    bestelldatum TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fid_benutzer INT REFERENCES benutzer(id_benutzer),
+    gesamtpreisnetto NUMERIC(10,2),
+    mwst NUMERIC(10,2),
+    gesamtpreisbrutto NUMERIC(10,2)
+);
+
+INSERT INTO bestellungen (fid_benutzer, gesamtpreisnetto, mwst, gesamtpreisbrutto) VALUES (1, 9.34, 0.65, 9.99);
+
+-- sind die Tabellen verbunden?
+SELECT ben.benutzername, best.bestelldatum 
+FROM benutzer ben 
+INNER JOIN bestellungen best ON ben.id_benutzer = best.fid_benutzer;
+
+-- ergibt: 
+--  benutzername |        bestelldatum        
+-- --------------+----------------------------
+--  user1        | 2024-09-18 14:04:39.375459
+-- (1 row) 
+
+-- die beiden Tabellen sind miteinander verbunden.
+```
+
