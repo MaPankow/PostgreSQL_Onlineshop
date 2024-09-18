@@ -185,11 +185,68 @@ FROM benutzer ben
 INNER JOIN bestellungen best ON ben.id_benutzer = best.fid_benutzer;
 
 -- ergibt: 
---  benutzername |        bestelldatum        
--- --------------+----------------------------
---  user1        | 2024-09-18 14:04:39.375459
--- (1 row) 
+ benutzername |        bestelldatum        
+--------------+----------------------------
+ user1        | 2024-09-18 14:04:39.375459
+(1 row) 
 
 -- die beiden Tabellen sind miteinander verbunden.
 ```
+
+### Bestellhistorien
+Diese Tabelle verweist auf die Tabellen Benutzer und Bestellungen. Sie ist eine Hilfstabelle, denn die Beziehung zwischen den Tabellen Benutzer und Bestellungen wäre sonst eine Many-To-Many-Beziehung. Allerdings kann sie auch für eine schnelle Übersicht sorgen, an welchem Tag wieviele Bestellungen getätigt wurden. Da das Bestelldatum bei Abfragen fast immer mit dieser Information zusammenhängen wird, wurde hier eine Denormalisierung vorgenommen, um auf einer Tabelle bleiben zu können, wenn man wissen möchte, wie viele Bestellungen an einem Tag getätigt wurden.
+
+```sql
+CREATE TABLE bestellhistorien (
+    id_historie SERIAL PRIMARY KEY,
+    fid_benutzer INT REFERENCES benutzer(id_benutzer),
+    fid_bestellung INT REFERENCES bestellungen(id_bestellung),
+    bestelldatum TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- wir tragen unsere Bestellung ein:
+INSERT INTO bestellhistorien(fid_benutzer, fid_bestellung)
+VALUES (1,1);
+
+world_of_comics=# SELECT * FROM bestellhistorien;
+ id_historie | fid_benutzer | fid_bestellung |        bestelldatum        
+-------------+--------------+----------------+----------------------------
+           1 |            1 |              1 | 2024-09-18 14:38:19.804368
+(1 row)
+
+-- natürlich sollte der Timestamp sowie die gesamte Bestellung zeitgleich in beide Tabellen eingetragen werden. User1 beschließt also, dass sie/er noch etwas vergessen hat ...
+
+INSERT INTO bestellungen (fid_benutzer, gesamtpreisnetto, mwst, gesamtpreisbrutto) VALUES (1, 28.03, 1.96, 29.99); 
+
+INSERT INTO bestellhistorien(fid_benutzer, fid_bestellung)
+VALUES (1,2);
+
+-- Ich habe beide Befehle gemeinsam abgesendet, doch eigentlich code ich die 2 nicht hart rein. In diesen Foreign Key soll die generierte id, die die Bestellung tatsächlich in ihrer Tabelle hat , eingetragen werden. 
+-- Wenn ich später in der Anwendung die Bestellung abschicke, passieren dort mehrere Befehle hintereinander, in denen erst die Bestellung zusammen mit der id_benutzer in die Tabelle Bestellungen eingetragen wird. Sie bekommt eine Id_Bestellung, die durch die Anwendung ausgelesen und dann an die Tabelle Bestellhistorien übergeben wird. Der Timestamp wird in beiden Tabellen automatisch erzeugt.
+
+world_of_comics=# SELECT * FROM bestellungen;
+ id_bestellung |        bestelldatum        | fid_benutzer | gesamtpreisnetto | mwst | gesamtpreisbrutto 
+---------------+----------------------------+--------------+------------------+------+-------------------
+             1 | 2024-09-18 14:04:39.375459 |            1 |             9.34 | 0.65 |              9.99
+             2 | 2024-09-18 14:46:06.968813 |            1 |            28.03 | 1.96 |             29.99
+(2 rows)
+
+world_of_comics=# SELECT * FROM bestellhistorien;
+ id_historie | fid_benutzer | fid_bestellung |        bestelldatum        
+-------------+--------------+----------------+----------------------------
+           1 |            1 |              1 | 2024-09-18 14:38:19.804368
+           2 |            1 |              2 | 2024-09-18 14:46:06.979294
+(2 rows)
+
+-- zu beachten ist, dass die Timestamps wenige Bruchteile einer Sekunde auseinanderliegen. Die Abfragen wurden nacheinander ausgeführt.
+
+SELECT ben.benutzername, best.gesamtpreisbrutto 
+FROM bestellhistorien his
+INNER JOIN benutzer ben ON ben.id_benutzer = his.fid_benutzer
+INNER JOIN bestellungen best ON best.id_bestellung = his.fid_bestellung;
+ benutzername | gesamtpreisbrutto 
+--------------+-------------------
+ user1        |              9.99
+ user1        |             29.99
+(2 rows)
+
 
