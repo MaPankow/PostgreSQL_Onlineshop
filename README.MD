@@ -194,7 +194,7 @@ INNER JOIN bestellungen best ON ben.id_benutzer = best.fid_benutzer;
 ```
 
 ### Bestellhistorien
-Diese Tabelle verweist auf die Tabellen Benutzer und Bestellungen. Sie ist eine Hilfstabelle, denn die Beziehung zwischen den Tabellen Benutzer und Bestellungen wäre sonst eine Many-To-Many-Beziehung. Allerdings kann sie auch für eine schnelle Übersicht sorgen, an welchem Tag wieviele Bestellungen getätigt wurden. Da das Bestelldatum bei Abfragen fast immer mit dieser Information zusammenhängen wird, wurde hier eine Denormalisierung vorgenommen, um auf einer Tabelle bleiben zu können, wenn man wissen möchte, wie viele Bestellungen an einem Tag getätigt wurden.
+Diese Tabelle verweist auf die Tabellen Benutzer und Bestellungen. Allerdings kann sie auch für eine schnelle Übersicht sorgen, an welchem Tag wieviele Bestellungen getätigt wurden. Da das Bestelldatum bei Abfragen fast immer mit dieser Information zusammenhängen wird, wurde hier eine Denormalisierung vorgenommen, um auf einer Tabelle bleiben zu können, wenn man wissen möchte, wie viele Bestellungen an einem Tag getätigt wurden.
 
 ```sql
 CREATE TABLE bestellhistorien (
@@ -249,4 +249,44 @@ INNER JOIN bestellungen best ON best.id_bestellung = his.fid_bestellung;
  user1        |             29.99
 (2 rows)
 
+```
+### Tabellen Produkte und Bestellposition
+Bis jetzt hat User1 einfach nur bestellt und einen Preis eingegeben. Ich würde ja gern Witze darüber machen, dass User1 bis jetzt nur bezahlt, aber ncihts bekommen hat, aber für den Witz fehlt noch eine andere Tabelle.
+Zahlen können wir später, jetzt wird erst mal der Bestellvorgang mit einer Tabelle für die Dinge, die bestellt werden können, komplett gemacht.
+Dazu kommt auch die Tabelle Bestellpositionen, denn diese ist wieder eine Hilfstabelle, um eine Many-to-Many-Beziehung (Bestellungen können n Produkte enthalten und ein Produkt kann in n Bestellungen bestellt werden) aufzulösen.
+
+Wieder fange ich mit der Tabelle Produkte an, da ich sie anschließend für den Foreign Key brauche.
+
+```sql
+CREATE TABLE produkte (
+    id_produkt SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    isbn VARCHAR(13),
+    preis NUMERIC(5, 2)
+);
+
+CREATE TABLE bestellpositionen (
+    id_bestellposition SERIAL PRIMARY KEY,
+    fid_bestellung INT REFERENCES bestellungen (id_bestellung),
+    fid_produkt INT REFERENCES produkte (id_produkt),
+    menge INT
+);
+
+-- Mir fällt auf, es geht um Bücher. Vielleicht sollte auch noch dabeistehen, wer es geschrieben hat und bei welchem Verlag es erschienen ist.
+
+ALTER TABLE produkte ADD COLUMN autor VARCHAR(150);
+
+ALTER TABLE produkte ADD COLUMN verlag VARCHAR(50);
+
+-- außerdem haben die Produkte einen verschiedenen Mehrwrtsteuersatz, je nachdem, ob es sich um Bücher (7 %) oder Figuren und Spiele handelt (19 %)
+
+ALTER TABLE produkte ADD COLUMN mwst_satz NUMERIC;
+--damit man damit auch rechnen kann, ist es jetzt ein NUMERIC
+
+```
+
+
+
+### Retourenprodukte
+18.09.2024 Festgestellt, dass hier auf jeden Fall die Bestellposition rein muss, nicht (unbedingt) die id des Produktes. Die kann man als Denormalisierung aber einsetzen, dann muss man das Produkt nicht über einen JOIN später suchen.
 
