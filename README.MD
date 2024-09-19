@@ -326,8 +326,21 @@ SELECT * FROM bestellungen;
 (2 rows)
 ```
 
+### Tabelle Zahlungen
+Jetzt sind alle Tabellen beisammen und so miteinander verknüpft, da können wir eine Rechnung schreiben.
 
+```sql
+CREATE TABLE zahlungen (
+    id_zahlung SERIAL PRIMARY KEY,
+    fid_bestellung INT REFERENCES bestellungen(id_bestellung),
+    betrag NUMERIC (10,2),
+    zahlungsdatum TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
+INSERT INTO zahlungen (fid_bestellung, betrag) VALUES
+(1, 28.50),
+(2, 48.00);
+```
 ### Retourenprodukte
 18.09.2024 Festgestellt, dass hier auf jeden Fall die Bestellposition rein muss, nicht (unbedingt) die id des Produktes. Die kann man als Denormalisierung aber einsetzen, dann muss man das Produkt nicht über einen JOIN später suchen.
 
