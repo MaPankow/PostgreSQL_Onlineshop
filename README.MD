@@ -281,8 +281,49 @@ ALTER TABLE produkte ADD COLUMN verlag VARCHAR(50);
 -- außerdem haben die Produkte einen verschiedenen Mehrwrtsteuersatz, je nachdem, ob es sich um Bücher (7 %) oder Figuren und Spiele handelt (19 %)
 
 ALTER TABLE produkte ADD COLUMN mwst_satz NUMERIC;
---damit man damit auch rechnen kann, ist es jetzt ein NUMERIC
+-- damit man damit auch rechnen kann, ist es jetzt ein NUMERIC
+```
 
+19.09.2024: Nach weiteren Überlegungen komme ich zu dem Ergebnis, dass ich in diese Tabelle den Burtto- und Nettopreis sowie den Betrag der Mehrwertsteuer haben möchte, damit die einzelnen Beträge auf Anwendungsebene  ausgerechnet werden können und in der Tabelle Bestellungen einfach nur aufaddiert werden können.
+
+```sql
+ALTER TABLE produkte RENAME COLUMN preis TO preis_netto;
+
+ALTER TABLE produkte ADD COLUMN preis_brutto NUMERIC(10, 2);
+
+ALTER TABLE produkte ADD COLUMN mwst_betrag NUMERIC(10, 2);
+
+
+INSERT INTO produkte(name, isbn, autor, verlag, mwst_satz, preis_netto, mwst_betrag, preis_brutto) VALUES
+('Frieren 10', '9783753919973', 'Yamada/Abe', 'altraverse', 7, 9.35, 0.65, 10),
+('Der Verkehrte Himmel', '9783964451088', 'Ross', 'avant-verlag', 7, 26.17, 1.83, 28),
+('Kinderland', '9783943143904', 'Mawil', 'Reprodukt', 7, 27.10, 1.90, 29),
+('Sonne und Beton', '9783446269613', 'Lobrecht/Haus', 'hanserblau', 7, 16.82, 1.18, 18),
+('Wie ein leeres Blatt', '9783551713889', 'Bloulet/Bagieu', 'Carlsen', 7, 11.21, 0.79, 12),
+('Naruto Shippuden - Manga-Figur 17cm', '3296580369089', 'Anime Heroes', 'BANZAI', 19, 23.95, 4.55, 28.50);
+
+-- wir haben zwei Bestellungen, denen ich jetzt Produkte zuordne
+
+INSERT INTO bestellpositionen (fid_bestellung, fid_produkt, menge) VALUES
+(1, 6, 1),
+(2, 1, 2),
+(2, 2, 1);
+
+-- jetzt stimmen bei den Bestellungen die Geldbeträge nicht mehr, weil ich mir für die Testdaten welche ausgedacht habe. 
+
+UPDATE bestellungen SET gesamtpreisnetto = 23.95, mwst = 4.55, gesamtpreisbrutto = 28.50 WHERE id_bestellung = 1;
+
+-- Die Besstellung Nr. 2 enthält 2x den Manga à 10 Euro und einen Comic à 28 Euro, also Gesamtpreisbrutto 48.00
+
+UPDATE bestellungen SET gesamtpreisnetto = 40.34, mwst = 7.66, gesamtpreisbrutto = 48.00 WHERE id_bestellung = 2;
+
+SELECT * FROM bestellungen;
+
+ id_bestellung |        bestelldatum        | fid_benutzer | gesamtpreisnetto | mwst | gesamtpreisbrutto 
+---------------+----------------------------+--------------+------------------+------+-------------------
+             1 | 2024-09-18 14:04:39.375459 |            1 |            23.95 | 4.55 |             28.50
+             2 | 2024-09-18 14:46:06.968813 |            1 |            40.34 | 7.66 |             48.00
+(2 rows)
 ```
 
 
