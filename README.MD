@@ -448,4 +448,190 @@ world_of_comics=# SELECT * FROM produkt_im_lager LIMIT 5;
 ```
 
 
+## 5 Testabfragen
+Die Datenbank ist fertig, aber ich möchte testen, ob alles korrekt miteinander verbunden ist. Deswegen stelle ich mir ein paar Testaufgaben.
 
+### 1. Wie viele Produkte hat User1 bestellt und wie viel muss User 1 bezahlen? (Benutzername, Anzahl aller Produkte, die bestellt wurden, Gesamtpreisbrutto)
+
+```sql
+-- die Abfrage ist komplex, ich probiere erst mal Teile aus
+SELECT SUM(gesamtpreisbrutto) FROM bestellungen WHERE fid_benutzer = 1;
+
+  sum  
+-------
+ 76.50
+(1 row)
+
+SELECT SUM(gesamtpreisbrutto) AS gesamtrechnung FROM bestellungen WHERE fid_benutzer = 1;
+
+ gesamtrechnung 
+----------------
+          76.50
+(1 row)
+
+SELECT ben.benutzername, SUM(best.gesamtpreisbrutto) AS gesamtrechnung, SUM(pos.menge) AS anzahl_produkte FROM bestellungen best
+INNER JOIN benutzer ben ON ben.id_benutzer = best.fid_benutzer
+INNER JOIN bestellpositionen pos ON best.id_bestellung = pos.fid_bestellung 
+WHERE best.fid_benutzer = 1 
+GROUP BY ben.benutzername;
+
+ benutzername | gesamtrechnung | anzahl_produkte 
+--------------+----------------+-----------------
+ user1        |         124.50 |               4
+(1 row)
+--ups, was hat er denn hier ausgerechnet? 124.50 - 76,50 ist 48.00, die Summe der zweiten Bestellung. Das liegt daran, dass es 3 id_bestellposition gibt:
+
+world_of_comics=# SELECT * FROM bestellpositionen;
+ id_bestellposition | fid_bestellung | fid_produkt | menge 
+--------------------+----------------+-------------+-------
+                  1 |              1 |           6 |     1
+                  2 |              2 |           1 |     2
+                  3 |              2 |           2 |     1
+(3 rows)
+
+-- vielleicht lässt sich der Fehler in der Abfrage beheben, wenn ich nach der id_bestellung gruppiere?
+SELECT ben.benutzername, SUM(best.gesamtpreisbrutto) AS gesamtrechnung, SUM(pos.menge) AS anzahl_produkte FROM bestellungen best
+INNER JOIN benutzer ben ON ben.id_benutzer = best.fid_benutzer
+INNER JOIN bestellpositionen pos ON best.id_bestellung = pos.fid_bestellung 
+WHERE best.fid_benutzer = 1 
+GROUP BY best.id_bestellung;
+
+ERROR:  column "ben.benutzername" must appear in the GROUP BY clause or be used in an aggregate function
+LINE 1: SELECT ben.benutzername, SUM(best.gesamtpreisbrutto) AS gesa...
+
+-- Menno! User1 hat als einziger Kunde eben zwei Mal bestellt!!! Ich lasse den benutzernamen erst mal raus.
+
+SELECT SUM(best.gesamtpreisbrutto) AS gesamtrechnung, SUM(pos.menge) AS anzahl_produkte FROM bestellungen best
+INNER JOIN benutzer ben ON ben.id_benutzer = best.fid_benutzer
+INNER JOIN bestellpositionen pos ON best.id_bestellung = pos.fid_bestellung 
+WHERE best.fid_benutzer = 1 
+GROUP BY best.id_bestellung;
+
+ gesamtrechnung | anzahl_produkte 
+----------------+-----------------
+          28.50 |               1
+          96.00 |               3
+(2 rows)
+
+-- trotzdem rechnet er immer noch die zweite Bestellung zwei mal, weil sie bei den Bestellpositionen 2x vorhanden ist. Vielleicht ist INNER JOIN die falsche Methode. Ich probiere einen LEFT JOIN aus, mit dem Gedanken, dass die Anzahl der Reihen in der rechten Tabelle dann egal wird:
+
+SELECT SUM(best.gesamtpreisbrutto) AS gesamtrechnung, SUM(pos.menge) AS anzahl_produkte FROM bestellungen best
+LEFT JOIN benutzer ben ON ben.id_benutzer = best.fid_benutzer
+LEFT JOIN bestellpositionen pos ON best.id_bestellung = pos.fid_bestellung 
+WHERE best.fid_benutzer = 1 
+GROUP BY best.id_bestellung;
+
+ gesamtrechnung | anzahl_produkte 
+----------------+-----------------
+          28.50 |               1
+          96.00 |               3
+(2 rows)
+
+-- hmmm, habe ich irgendwas in die Bestellungen insertet und vergessen?
+
+world_of_comics=# SELECT * FROM bestellungen;
+ id_bestellung |        bestelldatum        | fid_benutzer | gesamtpreisnetto | mwst | gesamtpreisbrutto 
+---------------+----------------------------+--------------+------------------+------+-------------------
+             1 | 2024-09-18 14:04:39.375459 |            1 |            23.95 | 4.55 |             28.50
+             2 | 2024-09-18 14:46:06.968813 |            1 |            40.34 | 7.66 |             48.00
+(2 rows)
+
+-- es gibt zwei Einträge in den Bestellungen, aber drei Einträge in den Bestellpositionen, weil Bestellung 2 zwei verschiedene Produkte hat. Die Art des JOINS ändert daran nichts, dass die "beiden Bestellungen 2" zusammengerechnet werden. Mit DISTINCT kann man die Dopplung bei den bestellpositionen rausnehmen:
+
+SELECT DISTINCT fid_bestellung FROM bestellpositionen;
+
+ fid_bestellung 
+----------------
+              2
+              1
+(2 rows)
+
+-- Idee:
+
+SELECT SUM(menge) FROM bestellpositionen GROUP BY fid_bestellung;
+
+ sum 
+-----
+   3
+   1
+(2 rows)
+
+-- Aha! Ich gruppiere jetzt die gesamte Query über die fid_bestellung bei den Bestellpositionen
+
+SELECT SUM(best.gesamtpreisbrutto) AS gesamtrechnung, SUM(pos.menge) AS anzahl_produkte FROM bestellungen best
+INNER JOIN benutzer ben ON ben.id_benutzer = best.fid_benutzer
+INNER JOIN bestellpositionen pos ON best.id_bestellung = pos.fid_bestellung 
+WHERE best.fid_benutzer = 1 
+GROUP BY pos.fid_bestellung;
+
+ gesamtrechnung | anzahl_produkte 
+----------------+-----------------
+          28.50 |               1
+          96.00 |               3
+(2 rows)
+
+-- es nervt! Ich probiere weiter mit DISTINCT
+SELECT DISTINCT fid_bestellung, menge FROM bestellpositionen;
+ fid_bestellung | menge 
+----------------+-------
+              1 |     1
+              2 |     2
+              2 |     1
+(3 rows)
+
+SELECT DISTINCT fid_bestellung, SUM(menge) 
+FROM bestellpositionen
+GROUP BY fid_bestellung;
+
+ fid_bestellung | sum 
+----------------+-----
+              1 |   1
+              2 |   3
+(2 rows)
+
+SELECT SUM(best.gesamtpreisbrutto) AS gesamtrechnung, SUM(pos.menge) AS anzahl_produkte FROM bestellungen best
+INNER JOIN benutzer ben ON ben.id_benutzer = best.fid_benutzer
+INNER JOIN bestellpositionen pos ON best.id_bestellung = pos.fid_bestellung 
+WHERE best.fid_benutzer = 1 
+GROUP BY (SELECT DISTINCT pos.fid_bestellung);
+
+-- CHAT GPT schlägt wirren Code vor, weil es die Tabellen nicht kennt. Aber ausschlaggebend ist die Idee, einen INNER JOIN in die Subquery einzubauen. Ich nehme noch mal die Ausgangsquery: 
+
+SELECT ben.benutzername, (SELECT SUM(best.gesamtpreisbrutto)) AS gesamtrechnung, (SELECT SUM(pos.menge)) AS anzahl_produkte 
+FROM bestellungen best    
+INNER JOIN bestellpositionen pos ON best.id_bestellung = pos.fid_bestellung 
+INNER JOIN benutzer ben ON ben.id_benutzer = best.fid_benutzer
+GROUP BY ben.benutzername;
+
+-- zerteilen:
+
+SELECT SUM(pos.menge) AS anzahl_produkte FROM bestellungen best INNER JOIN bestellpositionen pos ON best.id_bestellung = pos.fid_bestellung;
+
+ anzahl_produkte 
+-----------------
+               4
+
+SELECT ben.benutzername, (SELECT SUM(best.gesamtpreisbrutto)) AS gesamtrechnung, (SELECT SUM(pos.menge)  
+    FROM bestellungen best 
+    INNER JOIN bestellpositionen pos ON best.id_bestellung = pos.fid_bestellung) AS anzahl_produkte 
+FROM bestellungen best
+INNER JOIN benutzer ben ON ben.id_benutzer = best.fid_benutzer
+GROUP BY ben.benutzername;
+
+ benutzername | gesamtrechnung | anzahl_produkte 
+--------------+----------------+-----------------
+ user1        |          76.50 |               4
+(1 row)
+
+-- PAAAAAARTYYYYYYYYYYYY!!!
+
+```
+
+
+
+
+
+### 2. User1 bekommt zwei Rechnungen. Dafür brauchen wir die Rechnungsadresse (in dem Fall die Lieferadresse), die Kontodaten, den Nettogesamtbetrag, die Mwst und den Bruttogesamtbetrag
+### 3. Hat User 1 alle Rechnungen bezahlt? 
+### 4. Welches Produkt (Name, Autor) hat User1 zurückgegeben und wie viel Geld muss zu welchem Konto zurückerstattet werden?
+### 5. Welche Produkte (Name) sind in welchem Lager (Name) ausverkauft?
