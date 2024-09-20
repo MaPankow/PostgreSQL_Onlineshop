@@ -341,6 +341,52 @@ INSERT INTO zahlungen (fid_bestellung, betrag) VALUES
 (1, 28.50),
 (2, 48.00);
 ```
-### Retourenprodukte
-18.09.2024 Festgestellt, dass hier auf jeden Fall die Bestellposition rein muss, nicht (unbedingt) die id des Produktes. Die kann man als Denormalisierung aber einsetzen, dann muss man das Produkt nicht über einen JOIN später suchen.
+
+
+### Retouren und Retourenprodukte
+
+20.09.2024 Festgestellt, dass bei den Retourenprodukten auf jeden Fall die Bestellposition rein muss, nicht (unbedingt) die id des Produktes. Denn die Retour ist Teil einer Bestellung gewesen. Die Produkt-Id kann man als Denormalisierung aber einsetzen, dann muss man das Produkt nicht über einen extra JOIN suchen und kommt schneller an den Erstattungsbetrag.
+
+```sql
+CREATE TABLE retouren (
+    id_retour SERIAL PRIMARY KEY,
+    fid_bestellung INT REFERENCES bestellungen(id_bestellung),
+    fid_benutzer INT REFERENCES benutzer(id_benutzer),
+    rueckgabedatum TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    erstattungsbetrag_netto NUMERIC(5, 2),
+    mwst NUMERIC(5, 2),
+    erstattungsbetrag_brutto NUMERIC(5, 2)
+);
+
+CREATE TABLE retourenprodukte (
+    id_retourenprodukt SERIAL PRIMARY KEY,
+    fid_retour INT REFERENCES retouren(id_retour),
+    fid_produkt INT REFERENCES produkte(id_produkt),
+    fid_bestellposition INT REFERENCES bestellpositionen (id_bestellposition),
+    menge INT
+);
+
+-- Jetzt kann ich die Tabellen ausprobieren. User 1 hat zwei Mal denselben Manga bestellt. Sie/er schickt einen davon zurück.
+
+INSERT INTO retouren (fid_bestellung, fid_benutzer, erstattungsbetrag_netto, mwst, erstattungsbetrag_brutto) VALUES
+(2, 1, 9.35, 0.65, 10);
+
+INSERT INTO retourenprodukte (fid_retour, fid_produkt, fid_bestellposition, menge) VALUES
+(1, 1, 2, 1);
+
+-- beide Inserts schicke ich gleichzeitig ab
+
+world_of_comics=# SELECT * FROM retouren;
+ id_retour | fid_bestellung | fid_benutzer |       rueckgabedatum       | erstattungsbetrag_netto | mwst | erstattungsbetrag_brutto 
+-----------+----------------+--------------+----------------------------+-------------------------+------+--------------------------
+         1 |              2 |            1 | 2024-09-20 11:35:22.041437 |                    9.35 | 0.65 |                    10.00
+(1 row)
+
+
+world_of_comics=# SELECT * FROM retourenprodukte;
+ id_retourenprodukt | fid_retour | fid_produkt | fid_bestellposition | menge 
+--------------------+------------+-------------+---------------------+-------
+                  1 |          1 |           1 |                   2 |     1
+(1 row)
+```
 
