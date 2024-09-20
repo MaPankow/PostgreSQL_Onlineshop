@@ -390,3 +390,62 @@ world_of_comics=# SELECT * FROM retourenprodukte;
 (1 row)
 ```
 
+###  Lager und Produkt_im_Lager
+Ich nenne die Spalte für die Kapazität um in kapazitaet_m2, waas ausdrückt, dass die Quatdratmeterzahl eingetragen wird, und gebe ihr den Datentyp SMALLINT, weil ich nicht glaube, dass ein Lagerraum über 32,7 Quadratkilometer groß sein kann.
+```sql
+CREATE TABLE lager (
+    id_lager SERIAL PRIMARY KEY,
+    standort VARCHAR(20),
+    kapazitaet_m2 SMALLINT
+);
+
+CREATE TABLE produkt_im_lager (
+    id_produkt_im_lager SERIAL PRIMARY KEY,
+    fid_lager SMALLINT REFERENCES lager(id_lager),
+    fid_produkt INT REFERENCES produkte(id_produkt),
+    stueckzahl INT,
+    letzte_lieferung TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- auch hier nehme ich SMALLINT für den Foreign Key auf die Lager-Tabelle, da davon auszugehen ist, dass ein Comicshop nicht über 32767 Lager haben wird. (Falls er so weit expandieren sollte, können er es sich wohl leisten, den  Datentyp umstellen zu lassen)
+
+
+-- vorerst könnte man Lagerboxen in Hamburg, Berlin, Köln, Frankfurt und München haben
+
+INSERT INTO lager (standort, kapazitaet_m2) VALUES
+('Hamburg', 20),
+('Berlin', 37),
+('Köln', 25),
+('Frankfurt', 20),
+('München', 18);
+
+INSERT INTO produkt_im_lager (fid_lager, fid_produkt, stueckzahl) VALUES
+(1, 1, 20), (1, 2, 5), (1, 3, 2), (1, 4, 0), (1, 5, 1), (1, 6, 10),
+(2, 1, 15), (2, 2, 10), (2, 3, 15), (2, 4, 20), (2, 5, 20), (2, 6, 5),
+(3, 1, 24), (3, 2, 10), (3, 3, 0), (3, 4, 10), (3, 5, 20), (3, 6, 10),
+(4, 1, 0), (4, 2, 5), (4, 3, 10), (4, 4, 15), (4, 5, 1), (4, 6, 1),
+(5, 1, 4), (5, 2, 13), (5, 3, 20), (5, 4, 25), (5, 5, 1), (5, 6, 10);
+
+world_of_comics=# SELECT * FROM lager;
+ id_lager | standort  | kapazitaet_m2 
+----------+-----------+---------------
+        1 | Hamburg   |            20
+        2 | Berlin    |            37
+        3 | Köln      |            25
+        4 | Frankfurt |            20
+        5 | München   |            18
+(5 rows)
+
+world_of_comics=# SELECT * FROM produkt_im_lager LIMIT 5;
+ id_produkt_im_lager | fid_lager | fid_produkt | stueckzahl |     letzte_lieferung      
+---------------------+-----------+-------------+------------+---------------------------
+                   1 |         1 |           1 |         20 | 2024-09-20 13:42:01.86508
+                   2 |         1 |           2 |          5 | 2024-09-20 13:42:01.86508
+                   3 |         1 |           3 |          2 | 2024-09-20 13:42:01.86508
+                   4 |         1 |           4 |          0 | 2024-09-20 13:42:01.86508
+                   5 |         1 |           5 |          1 | 2024-09-20 13:42:01.86508
+(5 rows)
+
+```
+
+
+
