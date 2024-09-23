@@ -703,4 +703,7 @@ WHERE pl.stueckzahl = 0;
  Frankfurt | Frieren 10      | 9783753919973 |          0
 (3 rows)
 ```
+## Physisches ERD nachher
+Ein paar kleinere und größere Änderungen haben sich ergeben. Zum Überblick, wie die Datenbank dann aussieht, noch mal mein aktualisiertes physisches ERD:
 
+![Entity-Relationship-Diagramm nachher](/ERD-physisch-nachher.png)
