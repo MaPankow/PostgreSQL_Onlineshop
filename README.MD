@@ -631,7 +631,76 @@ GROUP BY ben.benutzername;
 
 
 
-### 2. User1 bekommt zwei Rechnungen. Dafür brauchen wir die Rechnungsadresse (in dem Fall die Lieferadresse), die Kontodaten, den Nettogesamtbetrag, die Mwst und den Bruttogesamtbetrag
+### 2. User1 bekommt eine Rechnung für Bestellung zwei. Dafür brauchen wir die Rechnungsadresse (in dem Fall die Lieferadresse), die Zahlungsart, den Nettogesamtbetrag, die Mwst und den Bruttogesamtbetrag.
+
+```sql
+SELECT ben.id_benutzer, ben.lieferadresse, ben.zahlungsart, best.gesamtpreisnetto, best.mwst, best.gesamtpreisbrutto
+FROM benutzer ben
+INNER JOIN bestellungen best ON best.fid_benutzer = ben.id_benutzer
+WHERE id_bestellung = 2;
+
+ id_benutzer |                 lieferadresse                  | zahlungsart | gesamtpreisnetto | mwst | gesamtpreisbrutto 
+-------------+------------------------------------------------+-------------+------------------+------+-------------------
+           1 | ("Martina Musterfrau","Musterstraße 31",15362) | abbuchung   |            40.34 | 7.66 |             48.00
+
+```
+
+
 ### 3. Hat User 1 alle Rechnungen bezahlt? 
+
+```sql
+SELECT ben.id_benutzer, (SELECT COUNT(best.id_bestellung)) AS anzahl_bestellungen, (SELECT SUM(best.gesamtpreisbrutto)) AS gesamtrechnung, (SELECT SUM(z.betrag) 
+    FROM bestellungen best
+    INNER JOIN zahlungen z ON z.fid_bestellung = best.id_bestellung) AS summe_bezahlt
+FROM bestellungen best 
+INNER JOIN benutzer ben ON best.fid_benutzer = ben.id_benutzer
+GROUP BY ben.id_benutzer;
+
+ id_benutzer | anzahl_bestellungen | gesamtrechnung | summe_bezahlt 
+-------------+---------------------+----------------+---------------
+           1 |                   2 |          76.50 |         76.50
+(1 row)
+```
+
+
+
+
+
+
+
 ### 4. Welches Produkt (Name, Autor) hat User1 zurückgegeben und wie viel Geld muss zu welchem Konto zurückerstattet werden?
+
+```sql
+SELECT p.name, p.autor, p.preis_brutto AS rückerstattungsbetrag, ben.abbuchung AS zielkonto
+FROM bestellpositionen pos 
+INNER JOIN retourenprodukte rp ON rp.fid_bestellposition = pos.id_bestellposition
+INNER JOIN produkte p ON rp.fid_produkt = p.id_produkt
+INNER JOIN retouren r ON rp.fid_retour = r.id_retour
+INNER JOIN benutzer ben ON ben.id_benutzer = r.fid_benutzer
+WHERE id_benutzer = 1;
+
+    name    |   autor    | rückerstattungsbetrag |                        zielkonto                        
+------------+------------+-----------------------+---------------------------------------------------------
+ Frieren 10 | Yamada/Abe |                 10.00 | ("Martina Musterfrau",DE37800000000000000000,Spaßkiste)
+(1 row)
+
+```
+
+
 ### 5. Welche Produkte (Name) sind in welchem Lager (Name) ausverkauft?
+
+```sql
+SELECT l.standort, p.name, p.isbn, pl.stueckzahl 
+FROM produkt_im_lager pl 
+INNER JOIN lager l ON l.id_lager = pl.fid_lager
+INNER JOIN produkte p ON pl.fid_produkt = p.id_produkt
+WHERE pl.stueckzahl = 0;
+
+ standort  |      name       |     isbn      | stueckzahl 
+-----------+-----------------+---------------+------------
+ Hamburg   | Sonne und Beton | 9783446269613 |          0
+ Köln      | Kinderland      | 9783943143904 |          0
+ Frankfurt | Frieren 10      | 9783753919973 |          0
+(3 rows)
+```
+
