@@ -707,3 +707,79 @@ WHERE pl.stueckzahl = 0;
 Ein paar kleinere und größere Änderungen haben sich ergeben. Zum Überblick, wie die Datenbank dann aussieht, noch mal mein aktualisiertes physisches ERD:
 
 ![Entity-Relationship-Diagramm nachher](/ERD-physisch-nachher.png)
+
+
+### 6. Lager auffüllen
+Mein Comicshop hat fünf Lager über Deutschland vertreilt. Hier ist noch mal die Tabelle:
+```sql
+world_of_comics=# select* FROM lager;
+ id_lager | standort  | kapazitaet_m2 
+----------+-----------+---------------
+        1 | Hamburg   |            20
+        2 | Berlin    |            37
+        3 | Köln      |            25
+        4 | Frankfurt |            20
+        5 | München   |            18
+
+-- Jetzt möchte ich in jedem Lager die Produkte um 10 Stück auffüllen, von denen nur noch 5 oder weniger vorhanden sind. Ich lege mit Hamburg los. Um zu sehen, ob die Transaktion funktioniert, lasse ich mir kurz noch mal alles anzeigen.
+
+SELECT p.name, p.autor, l.standort, pl.stueckzahl 
+FROM produkt_im_lager pl
+INNER JOIN produkte p ON pl.fid_produkt = p.id_produkt
+INNER JOIN lager l ON pl.fid_lager = l.id_lager
+WHERE l.standort = 'Hamburg';
+
+                name                 |     autor      | standort | stueckzahl 
+-------------------------------------+----------------+----------+------------
+ Frieren 10                          | Yamada/Abe     | Hamburg  |         20
+ Der Verkehrte Himmel                | Ross           | Hamburg  |          5
+ Kinderland                          | Mawil          | Hamburg  |          2
+ Sonne und Beton                     | Lobrecht/Haus  | Hamburg  |          0
+ Wie ein leeres Blatt                | Bloulet/Bagieu | Hamburg  |          1
+ Naruto Shippuden - Manga-Figur 17cm | Anime Heroes   | Hamburg  |         10
+(6 rows)
+
+-- Oh, hier muss dringend was getan werden!!! Ich probiere erst mal etwas aus.
+
+UPDATE produkt_im_lager SET stueckzahl = stueckzahl + 10
+    WHERE fid_lager = 1 AND stueckzahl BETWEEN 0 AND 5;
+
+-- Moment mal! (noch nicht ausgeführt) Kann man nicht einfach alle Lager super leicht auf einmal auffüllen?
+UPDATE produkt_im_lager SET stueckzahl = stueckzahl + 10
+    WHERE stueckzahl BETWEEN 0 AND 5;
+
+-- Man kann. Zwei Stichproben:
+
+world_of_comics=# SELECT p.name, p.autor, l.standort, pl.stueckzahl 
+FROM produkt_im_lager pl
+INNER JOIN produkte p ON pl.fid_produkt = p.id_produkt
+INNER JOIN lager l ON pl.fid_lager = l.id_lager
+WHERE l.standort = 'Hamburg';
+                name                 |     autor      | standort | stueckzahl 
+-------------------------------------+----------------+----------+------------
+ Frieren 10                          | Yamada/Abe     | Hamburg  |         20
+ Naruto Shippuden - Manga-Figur 17cm | Anime Heroes   | Hamburg  |         10
+ Der Verkehrte Himmel                | Ross           | Hamburg  |         15
+ Kinderland                          | Mawil          | Hamburg  |         12
+ Sonne und Beton                     | Lobrecht/Haus  | Hamburg  |         10
+ Wie ein leeres Blatt                | Bloulet/Bagieu | Hamburg  |         11
+(6 rows)
+
+world_of_comics=# SELECT p.name, p.autor, l.standort, pl.stueckzahl 
+FROM produkt_im_lager pl
+INNER JOIN produkte p ON pl.fid_produkt = p.id_produkt
+INNER JOIN lager l ON pl.fid_lager = l.id_lager
+WHERE l.standort = 'Köln';
+                name                 |     autor      | standort | stueckzahl 
+-------------------------------------+----------------+----------+------------
+ Frieren 10                          | Yamada/Abe     | Köln     |         24
+ Der Verkehrte Himmel                | Ross           | Köln     |         10
+ Sonne und Beton                     | Lobrecht/Haus  | Köln     |         10
+ Wie ein leeres Blatt                | Bloulet/Bagieu | Köln     |         20
+ Naruto Shippuden - Manga-Figur 17cm | Anime Heroes   | Köln     |         10
+ Kinderland                          | Mawil          | Köln     |         10
+(6 rows)
+
+
+```
+
