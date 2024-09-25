@@ -391,7 +391,7 @@ world_of_comics=# SELECT * FROM retourenprodukte;
 ```
 
 ###  Lager und Produkt_im_Lager
-Ich nenne die Spalte für die Kapazität um in kapazitaet_m2, waas ausdrückt, dass die Quatdratmeterzahl eingetragen wird, und gebe ihr den Datentyp SMALLINT, weil ich nicht glaube, dass ein Lagerraum über 32,7 Quadratkilometer groß sein kann.
+Ich nenne die Spalte für die Kapazität um in kapazitaet_m2, was ausdrückt, dass die Quatdratmeterzahl eingetragen wird, und gebe ihr den Datentyp SMALLINT, weil ich nicht glaube, dass ein Lagerraum über 32,7 Quadratkilometer groß sein kann.
 ```sql
 CREATE TABLE lager (
     id_lager SERIAL PRIMARY KEY,
@@ -703,14 +703,10 @@ WHERE pl.stueckzahl = 0;
  Frankfurt | Frieren 10      | 9783753919973 |          0
 (3 rows)
 ```
-## Physisches ERD nachher
-Ein paar kleinere und größere Änderungen haben sich ergeben. Zum Überblick, wie die Datenbank dann aussieht, noch mal mein aktualisiertes physisches ERD:
-
-![Entity-Relationship-Diagramm nachher](/ERD-physisch-nachher.png)
 
 
 ### 6. Lager auffüllen
-Mein Comicshop hat fünf Lager über Deutschland vertreilt. Hier ist noch mal die Tabelle:
+23.09.2024: Mein Comicshop hat fünf Lager über Deutschland vertreilt. Hier ist noch mal die Tabelle:
 ```sql
 world_of_comics=# select* FROM lager;
  id_lager | standort  | kapazitaet_m2 
@@ -782,4 +778,159 @@ WHERE l.standort = 'Köln';
 
 
 ```
+
+## Transaktion
+
+25.09.2024: Ich möchte User 2, die/den ich ganz frisch angelegt habe (Toll, dass man bei zwei KundInnen fünf Lager unterhalten kann, nicht wahr?), etwas bestellen lassen. Hierfür soll aus dem Lager, dass User 2 am nächsten liegt, der Comic entnommen werden. Die Stückzahl wird reduziert.
+Hier könnte man z. B. sie Stückzahl eines Produktes im Lager verändern, WHERE eine Bestellung aus einem bestimmten Bereich kommt. 
+
+Ich fange mit der Recherche an, welche Postleitzahlen wohl im Dunstkreis des Lagers in Berlin liegen könnten. Eine sehr grobe Recherche zu Übungszwecken ergab, dass die Postleitzahlen mit 0 und 1 am Anfang infrage kämen. (Brandenburg, Berlin, Teile Sachsens und Sachsen-Anhalts etc.) Ich denke an eine LIKE-Abfrage an einem Punkt. Hier ist der Prozess und was ich dabei herausgefunden habe:
+
+```sql
+
+-- Ich weiß, dass die Bestellung nach Berlin geschickt werden soll. Mal ins Lager reinschauen:
+SELECT * FROM lager WHERE standort = 'Berlin';
+
+ id_lager | standort | kapazitaet_m2 
+----------+----------+---------------
+        2 | Berlin   |            37
+(1 row)
+
+-- User 2 bestellt sich "Der verkehrte Himmel".
+SELECT * FROM produkte WHERE name = 'Der Verkehrte Himmel';
+
+ id_produkt |         name         |     isbn      | preis_netto | autor |    verlag    | mwst_satz | preis_brutto | mwst_betrag 
+------------+----------------------+---------------+-------------+-------+--------------+-----------+--------------+-------------
+          2 | Der Verkehrte Himmel | 9783964451088 |       26.17 | Ross  | avant-verlag |         7 |        28.00 |        1.83
+(1 row)
+
+-- ich lege eine leere Bestellung an, die später geupdatet werden soll. Doch für gewisse Abfragen braucht es zunächst die id_bestellung
+INSERT INTO bestellungen (fid_benutzer, gesamtpreisnetto, mwst, gesamtpreisbrutto) VALUES
+(2, 0, 0, 0);
+
+SELECT * FROM bestellungen WHERE fid_benutzer = 2 ORDER BY bestelldatum DESC LIMIT 1;
+
+ id_bestellung |        bestelldatum        | fid_benutzer | gesamtpreisnetto | mwst | gesamtpreisbrutto 
+---------------+----------------------------+--------------+------------------+------+-------------------
+             6 | 2024-09-25 16:22:04.200982 |            2 |             0.00 | 0.00 |              0.00
+(1 row)
+
+-- gibt die neueste Bestellung von User 2 aus, mit der id_bestellung, die für die Transaktion benötigt wird, in meinem Fall Nummer 6
+-- mir ist bewusst, dass die Datenbank mit keiner Anwendung verknüpt ist. Daten, die ich in die Transaktion einfüge, würden über das Backend mittels einer Anwendung eingesetzt. Dieses holt sich die Daten, indem es die Queries an anderer Stelle in den Code einprogrammiert bekommt, die ich hier einzeln erstelle. 
+-- an die id_produkt kommt die Anwendung dadurch, dass User2 die Proddukte angezeigt bekommt und dieses auswählt
+-- beim Schreiben der Transaktion fiel mir auf, dass nicht nur die id_bestellung und das Produkt bekannt sein muss, sondern auch die id_lager, damit die Stückzahl des richtigen Produktes im richtigen Lager geändert werden kann (In dem Fall bestellt User2 das Produkt nach Berlin)
+-- nach vielem Überlegen, wie man über die Postleitzahl an das Lager kommt, stelle ich fest, es braucht dafür noch eine oder mehrere Spalten in der Tabelle Lager
+-- das Testen mit der Transaktion ergibt also ein Ergebnis, wo die Tabelle verbessert werden muss. Ich kümmere mich zunächst um die Transaktion und code das die idd_lager 2 hart rein
+
+INSERT INTO bestellhistorien (fid_benutzer, fid_bestellung) VALUES (2, 6);
+-- die Bestellhistorie muss immer mit ausgefüllt werden
+
+INSERT INTO bestellpositionen (fid_bestellung, fid_produkt, menge) VALUES (6, 2, 1);
+-- die id_bestellposition brauchen wir ebenfalls für die Transaktion
+
+SELECT * FROM bestellpositionen WHERE fid_bestellung = 6;
+ id_bestellposition | fid_bestellung | fid_produkt | menge 
+--------------------+----------------+-------------+-------
+                  6 |              6 |           2 |     1
+(1 row)
+
+-- in der Transaktion füllen wir erst die Tabelle bestellungen aus mit den Preisen des Produktes verrechnet mit der Menge in der Tabelle Bestellpositionen. Sollte eine Bestellung mehrere Bestellpositionen enthalten, müssen sie addiert werden
+-- die Werte sollten am Ende der Transaktion also nicht mehr 0 sein, sondern denen des Produktes "Der Verkehrte Himmel" entsprechen
+-- dann wird die Stückzahl des Produktes im Lager verändert
+SELECT * FROM produkt_im_lager WHERE fid_produkt = 2 AND fid_lager = 2;
+
+ id_produkt_im_lager | fid_lager | fid_produkt | stueckzahl |     letzte_lieferung      
+---------------------+-----------+-------------+------------+---------------------------
+                   8 |         2 |           2 |          8 | 2024-09-20 13:42:01.86508
+(1 row)
+-- gegenwärtig sind nach meiner ganzen Wüterei in den Tabellen 8 Exemplare des Comics im Berliner Lager vorhanden. Es sollte nach der Tranaktion eines weniger da sein.
+
+BEGIN;
+
+UPDATE bestellungen
+SET gesamtpreisnetto = gesamtpreisnetto + (SELECT SUM(p.preis_netto * pos.menge)
+    FROM bestellpositionen pos
+    INNER JOIN produkte p ON pos.fid_produkt = p.id_produkt
+    WHERE pos.fid_bestellung = 6 AND p.id_produkt = 2)
+WHERE id_bestellung IN (
+    SELECT best.id_bestellung
+    FROM bestellpositionen pos
+    INNER JOIN bestellungen best ON pos.fid_bestellung = best.id_bestellung
+    INNER JOIN produkte p ON pos.fid_produkt = p.id_produkt
+    WHERE best.id_bestellung = 6 AND p.id_produkt = pos.fid_produkt
+);
+
+UPDATE bestellungen
+SET mwst = mwst + (SELECT SUM(p.mwst_betrag * pos.menge)
+    FROM bestellpositionen pos
+    INNER JOIN produkte p ON pos.fid_produkt = p.id_produkt
+    WHERE pos.fid_bestellung = 6 AND p.id_produkt = 2)
+WHERE id_bestellung IN (
+    SELECT best.id_bestellung
+    FROM bestellpositionen pos
+    INNER JOIN bestellungen best ON pos.fid_bestellung = best.id_bestellung
+    INNER JOIN produkte p ON pos.fid_produkt = p.id_produkt
+    WHERE best.id_bestellung = 6 AND p.id_produkt = pos.fid_produkt
+);
+
+UPDATE bestellungen
+SET gesamtpreisbrutto = gesamtpreisbrutto + (SELECT SUM(p.preis_brutto * pos.menge)
+    FROM bestellpositionen pos
+    INNER JOIN produkte p ON pos.fid_produkt = p.id_produkt
+    WHERE pos.fid_bestellung = 6 AND p.id_produkt = 2)
+WHERE id_bestellung IN (
+    SELECT best.id_bestellung
+    FROM bestellpositionen pos
+    INNER JOIN bestellungen best ON pos.fid_bestellung = best.id_bestellung
+    INNER JOIN produkte p ON pos.fid_produkt = p.id_produkt
+    WHERE best.id_bestellung = 6 AND p.id_produkt = pos.fid_produkt
+);
+
+
+UPDATE produkt_im_lager 
+SET stueckzahl = stueckzahl - (SELECT pos.menge
+    FROM produkte p
+    INNER JOIN produkt_im_lager pl ON p.id_produkt = pl.fid_produkt
+    INNER JOIN bestellpositionen pos ON pos.fid_produkt = p.id_produkt
+    WHERE pos.id_bestellposition = 6 LIMIT 1)
+WHERE id_produkt_im_lager IN (
+    SELECT pl.id_produkt_im_lager
+    FROM produkt_im_lager pl
+    INNER JOIN lager l ON l.id_lager = pl.fid_lager
+    WHERE l.id_lager=2 AND pl.fid_produkt = 2
+);
+
+COMMIT;
+
+-- Natürlich habe ich den Code für die Transaktion nicht aus dem Ärmel geschüttelt. Es erforderte Einiges, bis er stand. Umso erfreulicher ist es, das in der Konsole zu lesen:
+BEGIN
+UPDATE 1
+UPDATE 1
+UPDATE 1
+UPDATE 1
+COMMIT
+
+-- Ich wiederhole einige Abfragen, um die Veränderungen zu sehen:
+
+SELECT * FROM bestellungen WHERE fid_benutzer = 2 ORDER BY bestelldatum DESC LIMIT 1;
+
+ id_bestellung |        bestelldatum        | fid_benutzer | gesamtpreisnetto | mwst | gesamtpreisbrutto 
+---------------+----------------------------+--------------+------------------+------+-------------------
+             6 | 2024-09-25 16:22:04.200982 |            2 |            26.17 | 1.83 |             28.00
+(1 row)
+
+
+SELECT * FROM produkt_im_lager WHERE fid_produkt = 2 AND fid_lager = 2;
+
+ id_produkt_im_lager | fid_lager | fid_produkt | stueckzahl |     letzte_lieferung      
+---------------------+-----------+-------------+------------+---------------------------
+                   8 |         2 |           2 |          7 | 2024-09-20 13:42:01.86508
+(1 row)
+
+-- Der Preis ist nun eingetragen und die Stückzahl im Lager von Berlin um 1 verringert. Jetzt muss ich bald das Lager wieder auffüllen, wenn das so weier geht ;)
+
+
+
+
+
 
