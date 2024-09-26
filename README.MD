@@ -929,8 +929,84 @@ SELECT * FROM produkt_im_lager WHERE fid_produkt = 2 AND fid_lager = 2;
 
 -- Der Preis ist nun eingetragen und die Stückzahl im Lager von Berlin um 1 verringert. Jetzt muss ich bald das Lager wieder auffüllen, wenn das so weier geht ;)
 
+```
+## Die Spalte Einzugsgebiet
+... oder besser gesagt, zwei Spalten. Wir haben zehn Gebiete mit Postleizahlen, die je mit 0-9 anfangen. Das mache ich mir zunutze, indem ich in die Tabelle Lager zwei Spalten einfüge, die den niedrigsten Wert und den höchsten Wert markieren. Es gibt sicherlich andere Lösungen, doch für die Übung soll das jetzt reichen. 
+Ich ordne also dem Lager in Berlin die Postleitzahlen zu, die mit 0 und 1 anfangen, Hamburg bekommt 2, Köln bekommt 3, 4 und 5, Frankfurt 6 und 7 und München 8 und 9.
+
+```sql
+-- Im Datentyp Lieferadresse und Rechnungsadresse ändere ich den Datentyp der Postleitzahl von CHAR zu SMALLINT, um die Zahlen in der Query als Zahlen behandeln zu können.
+-- Dafür muss man erst die Spalten in der Tabelle benutzer löschen, um Abhängigkeiten herauszunehmen
+ALTER TABLE benutzer 
+DROP COLUMN lieferadresse;
+
+ALTER TABLE benutzer 
+DROP COLUMN rechnungsadresse;
 
 
+ALTER TYPE lieferadresse ALTER ATTRIBUTE "postleitzahl" SET DATA TYPE INT;
 
+ALTER TYPE rechnungsadresse ALTER ATTRIBUTE "postleitzahl" SET DATA TYPE INT;
+
+ALTER TABLE benutzer 
+ADD COLUMN lieferadresse lieferadresse;
+
+ALTER TABLE benutzer ALTER COLUMN lieferadresse SET NOT NULL;
+
+ALTER TABLE benutzer 
+ADD COLUMN rechnungsadresse rechnungsadresse;
+
+-- Natürlich habe ich mir damit die Dummydaten ein bisschen zerschossen und füge neue ein
+
+UPDATE benutzer SET lieferadresse = ROW('Martina Musterfrau', 'Musterstraße 1', 12345)
+WHERE id_benutzer = 1;
+
+UPDATE benutzer SET lieferadresse = ROW('Max Mustermann', 'Musterstraße 2', 16789)
+WHERE id_benutzer = 2;
+
+
+-- Neue Spalten! Endlich!
+ALTER TABLE lager ADD COLUMN einzugsgebiet_min INT;
+
+ALTER TABLE lager ADD COLUMN einzugsgebiet_max INT;
+
+UPDATE lager SET einzugsgebiet_min = 00000, einzugsgebiet_max = 19999 WHERE standort = 'Berlin';
+UPDATE lager SET einzugsgebiet_min = 20000, einzugsgebiet_max = 29999 WHERE standort = 'Hamburg';
+UPDATE lager SET einzugsgebiet_min = 30000, einzugsgebiet_max = 59999 WHERE standort = 'Köln';
+UPDATE lager SET einzugsgebiet_min = 60000, einzugsgebiet_max = 79999 WHERE standort = 'Frankfurt';
+UPDATE lager SET einzugsgebiet_min = 80000, einzugsgebiet_max = 99999 WHERE standort = 'München';
+
+world_of_comics=# SELECT * FROM lager;
+ id_lager | standort  | kapazitaet_m2 | einzugsgebiet_min | einzugsgebiet_max 
+----------+-----------+---------------+-------------------+-------------------
+        2 | Berlin    |            37 |                 0 |             19999
+        1 | Hamburg   |            20 |             20000 |             29999
+        3 | Köln      |            25 |             30000 |             59999
+        4 | Frankfurt |            20 |             60000 |             79999
+        5 | München   |            18 |             80000 |             99999
+
+-- keine Transaktion, aber eine Query. User 1 hat einen Comic zurückgegeben (id_produkt 1), und aus den Benutzerdaten erfahren wir die Postleitzahl.
+-- die Nummer des Lagers könnte in der Anwendung mit einem Switch-Statement "einsortiert" werden und mit folgender Query in der Datenbank abgelegt:
+SELECT * FROM produkt_im_lager 
+WHERE fid_lager = (SELECT pl.fid_lager FROM produkt_im_lager pl
+INNER JOIN lager l ON pl.fid_lager = l.id_lager
+WHERE l.einzugsgebiet_min >= 0 AND l.einzugsgebiet_max <= 19999 LIMIT 1) AND fid_produkt = 1;
+
+id_produkt_im_lager | fid_lager | fid_produkt | stueckzahl |     letzte_lieferung      
+---------------------+-----------+-------------+------------+---------------------------
+                   7 |         2 |           1 |         16 | 2024-09-20 13:42:01.86508
+
+UPDATE produkt_im_lager SET stueckzahl = stueckzahl + 1
+WHERE fid_lager = (SELECT pl.fid_lager FROM produkt_im_lager pl
+INNER JOIN lager l ON pl.fid_lager = l.id_lager
+WHERE l.einzugsgebiet_min >= 0 AND l.einzugsgebiet_max <= 19999 LIMIT 1) AND fid_produkt = 1;
+
+SELECT * FROM produkt_im_lager 
+WHERE fid_lager = (SELECT pl.fid_lager FROM produkt_im_lager pl
+INNER JOIN lager l ON pl.fid_lager = l.id_lager
+WHERE l.einzugsgebiet_min >= 0 AND l.einzugsgebiet_max <= 19999 LIMIT 1) AND fid_produkt = 1;
+ id_produkt_im_lager | fid_lager | fid_produkt | stueckzahl |     letzte_lieferung      
+---------------------+-----------+-------------+------------+---------------------------
+                   7 |         2 |           1 |         17 | 2024-09-20 13:42:01.86508
 
 
