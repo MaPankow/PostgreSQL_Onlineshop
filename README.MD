@@ -1,9 +1,14 @@
 # Onlineshop für PostgreSQL
 
 **Das Projekt startete ich am 13.09.2024**
-In diesem Projekt möchte ich eine Postgres-Datenbank für einen Onlineshop anlegen. Ein logisches ERD ist bereits vorgegeben.
+In diesem Projekt möchte ich eine Postgres-Datenbank für einen Onlineshop anlegen und weitere SQL-Befehle für Abfragen üben. 
+Es ist viel Text und wer ein bisschen überfliegen möchte, kann sich ganz am Ende mein "ERD nachher" anschauen, es ist ein physisches Entity-Relationship-Diagramm, das die Datenbank abbildet. 
+Viel Spaß!
+
+Ein logisches ERD ist bereits vorgegeben:
+![logisches Entity-Relationship-Diagram als Aufgabenstellung](/Onlineshop_Diagramm.png)
 Für mein Beispiel wähle ich einen Online-Comicshop und nenne ihn World of Comics.
-Für weitere Überlegungen und um Datentypen zu recherchieren und festzuhalten, lege ich noch ein physisches ERD an.
+Für weitere Überlegungen und um Datentypen zu recherchieren und festzuhalten, lege ich noch ein physisches ERD an, mit dem ich im Verlauf des Projektes arbeite. Unter der Überschrift "ERD vorher" ist es zu finden.
 
 
 ## Datenbank anlegen
@@ -19,13 +24,10 @@ CREATE DATABASE World_of_Comics;
 \c world_of_comics;
 ```
 
-## Physisches ERD und Implementierung der ersten Tabelle
-Da ich ein logisches ERD vorgegeben bekommen habe, möchte ich es zunächst richtig verstehen, Unklarheiten klären und überlegen, welche Datentypen hier richtig wären, bevor ich direkt implementiere.
+## Implementierung der ersten Tabelle
+Da ich Diagramm vorgegeben bekommen habe, möchte ich es zunächst richtig verstehen, Unklarheiten klären und überlegen, welche Datentypen hier richtig wären, bevor ich direkt implementiere. 
+Notiz: Ich war so neugierig, dass ich in meinem ERD nur die erste Tabelle angelegt und direkt implementiert habe. Danach habe ich mich zusammengerissen.
 
-**HINWEIS**
-Dies ist das erste Mal, dass ich mit Postgres eine Datenbank erstelle, und auch, dass ich mich mit Onlineshops auseinandersetze. Deshalb mache ich Fehler, aus denen ich lerne. Besonders die Datentypen, die es bei MySQL/MariaDB und SQLite nicht gibt, sind also neu und ich möchte sie ausprobieren. Im ERD habe ich die erste Tabelle (Benutzerkonto) angelegt und wollte sie sofort erstellen, um auszuprobieren, ob alles so klappt. 
-Das hat es auch technisch, aber später fand ich noch kleine Dinge heraus bzw. lernte noch etwas über die Datentypen, das ich hier dokumentiere.
-Nach der ersten Tabelle habe ich das restliche ERD komplett erstellt. Mir ist bewusst, dass ich noch mehr Sachen lernen und feststellen werde. Um es anschaulich zu machen, werde ich das ERD vor und nach dem Implementieren mit Korrekturen zeigen. Die Überlegungen dazu schreibe ich in die Dokumentation.
 
 
 ### Benutzerkonto
@@ -117,17 +119,17 @@ Fragen tun sich bei mir in der Beziehung zwischen Lager und Produkten auf. Im vo
 Hier sollte also noch eine *Hilfstabelle* implementiert werden. Das ist die Produkt-im-Lager-Tabelle. Zunächst dachte ich an einen Composite Primary Key auf der Produkt-Id und der Lager-Id und wunderte mich allgemein, wieso es keine Composite Keys in dem vorgegebenen Diagramm gibt. Weitere Überlegungen führten zu dem Ergebnis, dass ein Primary Key niemals NULL sein darf. Was ist aber, wenn das Lager umzieht oder ein Produkt vom Markt genommen wird? Wahrscheinlich kann aus verschiedenen Gründen etwas NULL werden. Eine zusätzliche Id als Primary Key ändert auch nichts in der Funktion der Tabelle, also lege ich keinen Composite Kay an. 
 Die Tabelle bekommt eine weitere Spalte, die die Stückzahl eines Produktes in einem der Lager anzeigt. Zudem füge ich noch eine Spalte letzte_lieferung_am ein, die einen Timestamp erhält, der bei jeder Belieferung aktualisiert wird. So kann man sehen, welche Produkte zu Ladenhütern werden und vielleicht veräußert werden müssen, wenn es im Lager eng wird.
 
-### ERD vorher
+## ERD vorher
 Hier ist mein physisches ERD, Stand 17.09.2024:
 
-![physisches Entity-Relationship-Diagram](/ERD-physisch.png)
+![physisches Entity-Relationship-Diagram vorher](/ERD-physisch.png)
 
 
 
 ### Eilmeldung! ENUM sinnlos!
 17.09.2024: Es ist alles sinnlos!!! Was ist passiert?
 Nein, nicht alles ist sinnlos, ich muss nur eine Spalte in meiner Tabelle von einem ENUM zu einem normalen VARCHAR umstellen. Und das nicht, weil es sich bei ENUM um einen sinnlosen Datentyp handelt, sondern weil Zahlungsmethoden sich ändern könnten und man dann nicht jedes Mal die Programmiererin des Vertrauens rufen will, um die Zahlungsmethode in den Datentyp reinzuprokeln, damit man ihn in die Tabelle einpflegen kann. 
-ENUM könnte man bei Spalten verwenden, die unverändert bleiben, z. B. wenn man in einem Lieferrestaurant anzeigen will, ob das Essen erst bestellt oder in Vorbereitung ist, oder schon ausgeliefert und bezahlt (wenn man das nicht mit einer elektronischen Zahlungsart schon vorher ...eeeeeehm!)
+ENUM könnte man bei Spalten verwenden, die unverändert bleiben, z. B. wenn man in einem Lieferrestaurant anzeigen will, ob das Essen erst bestellt oder in Vorbereitung ist, oder schon ausgeliefert und bezahlt (wenn man das nicht mit einer elektronischen Zahlungsart schon vorher ...eeeeeehm!).
 
 ```sql
 ALTER TABLE benutzer
@@ -931,6 +933,7 @@ SELECT * FROM produkt_im_lager WHERE fid_produkt = 2 AND fid_lager = 2;
 
 ```
 ## Die Spalte Einzugsgebiet
+26.09.2024:
 ... oder besser gesagt, zwei Spalten. Wir haben zehn Gebiete mit Postleizahlen, die je mit 0-9 anfangen. Das mache ich mir zunutze, indem ich in die Tabelle Lager zwei Spalten einfüge, die den niedrigsten Wert und den höchsten Wert markieren. Es gibt sicherlich andere Lösungen, doch für die Übung soll das jetzt reichen. 
 Ich ordne also dem Lager in Berlin die Postleitzahlen zu, die mit 0 und 1 anfangen, Hamburg bekommt 2, Köln bekommt 3, 4 und 5, Frankfurt 6 und 7 und München 8 und 9.
 
@@ -1010,3 +1013,9 @@ WHERE l.einzugsgebiet_min >= 0 AND l.einzugsgebiet_max <= 19999 LIMIT 1) AND fid
                    7 |         2 |           1 |         17 | 2024-09-20 13:42:01.86508
 
 
+```
+## ERD nachhher
+
+Hier ist jetzt die endgültige Version meines Entity-Relationship-Diagramms, Stand 26.09.2024:
+
+![physisches Entity-Relationship-Diagram nachher](/ERD-physisch-nachher.png)
