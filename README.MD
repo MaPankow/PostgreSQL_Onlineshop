@@ -1,7 +1,10 @@
 # Onlineshop für PostgreSQL
 
+Link zur Aufgabe: https://github.com/bergemann-hoehne/Datenbank-Wochenprojekte/tree/main/09_Wochenprojekt
+
 **Das Projekt startete ich am 13.09.2024**
 In diesem Projekt möchte ich eine Postgres-Datenbank für einen Onlineshop anlegen und weitere SQL-Befehle für Abfragen üben. 
+
 Es ist viel Text und wer ein bisschen überfliegen möchte, kann sich ganz am Ende mein "ERD nachher" anschauen, es ist ein physisches Entity-Relationship-Diagramm, das die Datenbank abbildet. 
 Viel Spaß!
 
