@@ -3,7 +3,7 @@
 Link zur Aufgabe: https://github.com/bergemann-hoehne/Datenbank-Wochenprojekte/tree/main/09_Wochenprojekt
 
 **Das Projekt startete ich am 13.09.2024**
-In diesem Projekt möchte ich eine Postgres-Datenbank für einen Onlineshop anlegen und weitere SQL-Befehle für Abfragen üben. 
+In diesem Projekt möchte ich eine Postgres-Datenbank für einen Onlineshop anlegen und weitere SQL-Befehle für Abfragen üben. Da es hier einer Geschichte gleicht, in der ich zeige, was ich auf dem Weg lerne, habe ich eine Datei Nur_SQL-Code_zum_Nachbauen.MD hinzugefügt.
 
 Es ist viel Text und wer ein bisschen überfliegen möchte, kann sich ganz am Ende mein "ERD nachher" anschauen, es ist ein physisches Entity-Relationship-Diagramm, das die Datenbank abbildet. 
 Viel Spaß!
@@ -28,7 +28,7 @@ CREATE DATABASE World_of_Comics;
 ```
 
 ## Implementierung der ersten Tabelle
-Da ich Diagramm vorgegeben bekommen habe, möchte ich es zunächst richtig verstehen, Unklarheiten klären und überlegen, welche Datentypen hier richtig wären, bevor ich direkt implementiere. 
+Da ich ein Diagramm vorgegeben bekommen habe, möchte ich es zunächst richtig verstehen, Unklarheiten klären und überlegen, welche Datentypen hier richtig wären, bevor ich direkt implementiere. 
 Notiz: Ich war so neugierig, dass ich in meinem ERD nur die erste Tabelle angelegt und direkt implementiert habe. Danach habe ich mich zusammengerissen.
 
 
@@ -200,6 +200,7 @@ INNER JOIN bestellungen best ON ben.id_benutzer = best.fid_benutzer;
 
 ### Bestellhistorien
 Diese Tabelle verweist auf die Tabellen Benutzer und Bestellungen. Allerdings kann sie auch für eine schnelle Übersicht sorgen, an welchem Tag wieviele Bestellungen getätigt wurden. Da das Bestelldatum bei Abfragen fast immer mit dieser Information zusammenhängen wird, wurde hier eine Denormalisierung vorgenommen, um auf einer Tabelle bleiben zu können, wenn man wissen möchte, wie viele Bestellungen an einem Tag getätigt wurden.
+Oder ein User kann die eigenen Bestellungen aufrufen und z. B. wiederverwenden.
 
 ```sql
 CREATE TABLE bestellhistorien (
@@ -786,10 +787,11 @@ WHERE l.standort = 'Köln';
 
 ## Transaktion
 
-25.09.2024: Ich möchte User 2, die/den ich ganz frisch angelegt habe (Toll, dass man bei zwei KundInnen fünf Lager unterhalten kann, nicht wahr?), etwas bestellen lassen. Hierfür soll aus dem Lager, dass User 2 am nächsten liegt, der Comic entnommen werden. Die Stückzahl wird reduziert.
-Hier könnte man z. B. sie Stückzahl eines Produktes im Lager verändern, WHERE eine Bestellung aus einem bestimmten Bereich kommt. 
+25.09.2024: Ich möchte User 2, die/den ich ganz frisch angelegt habe (Toll, dass man bei zwei KundInnen fünf Lager unterhalten kann, nicht wahr?), etwas bestellen lassen. Hierfür soll aus dem Lager, das User 2 am nächsten liegt, der Comic entnommen werden. Die Stückzahl wird reduziert.
+Hier möchte ich z. B. sie Stückzahl eines Produktes im Lager verändern, WHERE eine Bestellung aus einem bestimmten Bereich kommt. 
+Achtung! Das ist nur eine Übung und, um die Datenbank zu testen. In der Realität läuft das anders.
 
-Ich fange mit der Recherche an, welche Postleitzahlen wohl im Dunstkreis des Lagers in Berlin liegen könnten. Eine sehr grobe Recherche zu Übungszwecken ergab, dass die Postleitzahlen mit 0 und 1 am Anfang infrage kämen. (Brandenburg, Berlin, Teile Sachsens und Sachsen-Anhalts etc.) Ich denke an eine LIKE-Abfrage an einem Punkt. Hier ist der Prozess und was ich dabei herausgefunden habe:
+
 
 ```sql
 
@@ -908,7 +910,7 @@ WHERE id_produkt_im_lager IN (
 
 COMMIT;
 
--- natürlich habe ich den Code für die Transaktion nicht aus dem Ärmel geschüttelt. Es erforderte Einiges, bis er stand. Umso erfreulicher ist es, das in der Konsole zu lesen:
+-- natürlich habe ich den Code für die Transaktion nicht aus dem Ärmel geschüttelt. Es erforderte Einiges, bis er stand. Umso erfreulicher ist es, als in der Konsole zu lesen war:
 BEGIN
 UPDATE 1
 UPDATE 1
@@ -942,7 +944,7 @@ SELECT * FROM produkt_im_lager WHERE fid_produkt = 2 AND fid_lager = 2;
 Ich ordne also dem Lager in Berlin die Postleitzahlen zu, die mit 0 und 1 anfangen, Hamburg bekommt 2, Köln bekommt 3, 4 und 5, Frankfurt 6 und 7 und München 8 und 9.
 
 ```sql
--- Im Datentyp Lieferadresse und Rechnungsadresse ändere ich den Datentyp der Postleitzahl von CHAR zu SMALLINT, um die Zahlen in der Query als Zahlen behandeln zu können.
+-- Im Datentyp Lieferadresse und Rechnungsadresse ändere ich den Datentyp der Postleitzahl von CHAR zu INT, um die Zahlen in der Query als Zahlen behandeln zu können.
 -- Dafür muss ich erst die Spalten in der Tabelle benutzer löschen, um Abhängigkeiten herauszunehmen
 ALTER TABLE benutzer 
 DROP COLUMN lieferadresse;
